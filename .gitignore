@@ -1,0 +1,5 @@
+venv/
+dynamo.db
+dynamo.db-wal
+dynamo.db-shm
+__pycache__/

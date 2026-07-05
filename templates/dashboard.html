@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="60"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DynaMo · CoolSip Summer Campaign</title>
+<style>
+  :root{
+    --ink:#1c1917; --muted:#78716c; --paper:#fafaf9; --card:#ffffff;
+    --line:#e7e5e4;
+    --hot:#c2410c;    --hot-bg:#fff7ed;   --hot-line:#fed7aa;
+    --rain:#1d4ed8;   --rain-bg:#eff6ff;  --rain-line:#bfdbfe;
+    --normal:#047857; --normal-bg:#ecfdf5;--normal-line:#a7f3d0;
+    --warn:#b45309;   --warn-bg:#fffbeb;
+    --err:#b91c1c;    --err-bg:#fef2f2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+       font:15px/1.5 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;
+         padding:20px 28px;border-bottom:2px solid var(--ink);background:var(--card)}
+  header h1{font-size:20px;margin:0;letter-spacing:-.01em}
+  header .sub{color:var(--muted)}
+  header form{margin-left:auto}
+  .btn{border:1.5px solid var(--ink);background:var(--card);color:var(--ink);
+       padding:6px 14px;border-radius:6px;font:inherit;font-weight:600;cursor:pointer}
+  .btn:hover{background:var(--ink);color:var(--card)}
+  .btn.small{padding:2px 8px;font-size:12px;font-weight:500}
+  main{max-width:1200px;margin:0 auto;padding:24px 28px 64px}
+  .banner{padding:10px 16px;border-radius:8px;margin-bottom:20px;font-weight:600}
+  .banner.err{background:var(--err-bg);color:var(--err);border:1px solid var(--err)}
+  .banner.warn{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn)}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+     margin:32px 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+  .city{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .city .strip{padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+  .city.HOT .strip{background:var(--hot-bg);border-bottom:1px solid var(--hot-line)}
+  .city.RAINY .strip{background:var(--rain-bg);border-bottom:1px solid var(--rain-line)}
+  .city.NORMAL .strip{background:var(--normal-bg);border-bottom:1px solid var(--normal-line)}
+  .city.NODATA .strip{background:var(--err-bg);border-bottom:1px solid var(--err)}
+  .city h3{margin:0;font-size:16px}
+  .cond{font-weight:700;font-size:12px;letter-spacing:.06em}
+  .city.HOT .cond{color:var(--hot)} .city.RAINY .cond{color:var(--rain)}
+  .city.NORMAL .cond{color:var(--normal)} .city.NODATA .cond{color:var(--err)}
+  .reading{padding:8px 16px;color:var(--muted);font-size:13px;border-bottom:1px solid var(--line)}
+  .reading .stale{color:var(--err);font-weight:700}
+  .reading .sim{color:var(--warn);font-weight:700}
+  .li{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--line)}
+  .li:last-child{border-bottom:none}
+  .li .name{flex:1;font-size:13.5px}
+  .li .meta{color:var(--muted);font-size:11.5px}
+  .li .why{font-size:11.5px;color:var(--normal);font-style:italic;margin-top:2px}
+  .pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;letter-spacing:.04em}
+  .pill.active{background:var(--normal-bg);color:var(--normal);border:1px solid var(--normal-line)}
+  .pill.paused{background:#f5f5f4;color:var(--muted);border:1px solid var(--line)}
+  .pill.override{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn)}
+  table{width:100%;border-collapse:collapse;background:var(--card);
+        border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13px}
+  th{background:#f5f5f4;text-align:left;padding:8px 12px;font-size:11px;
+     text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  td{padding:8px 12px;border-top:1px solid var(--line);vertical-align:top}
+  td.reason{max-width:480px}
+  .tag{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:4px;letter-spacing:.04em}
+  .tag.weather{background:var(--rain-bg);color:var(--rain)}
+  .tag.safe_mode{background:var(--err-bg);color:var(--err)}
+  .tag.override,.tag.release{background:var(--warn-bg);color:var(--warn)}
+  .arrow-active{color:var(--normal);font-weight:700}
+  .arrow-paused{color:var(--muted);font-weight:700}
+  details{margin-top:32px;background:var(--card);border:1px dashed var(--warn);
+          border-radius:10px;padding:14px 18px}
+  details summary{cursor:pointer;font-weight:700;color:var(--warn)}
+  details.dbview{border:1px solid var(--line)}
+  details.dbview summary{color:var(--ink);font-size:13px;text-transform:uppercase;letter-spacing:.08em}
+  details.dbview h3{font-size:13px;margin:14px 0 6px}
+  details form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+  details input,details select{padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit}
+  .events li{font-size:12.5px;color:var(--muted);margin-bottom:4px}
+  .events .warning{color:var(--warn)} .events .error{color:var(--err)}
+  .empty{color:var(--muted);padding:16px;text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>DynaMo</h1>
+  <span class="sub">CoolSip Summer Campaign · 4 cities · 12 line items</span>
+  <form action="/run-cycle" method="post"><button class="btn">Check weather now</button></form>
+</header>
+
+<main>
+
+  {% set stale_cities = cities.items() | selectattr('1.stale') | map(attribute='0') | list %}
+  {% set nodata = cities.items() | rejectattr('1.snapshot') | map(attribute='0') | list %}
+  {% if nodata %}
+    <div class="banner err">No weather data yet for {{ nodata | join(', ') }} — affected cities run the all-weather creative until data arrives.</div>
+  {% elif stale_cities %}
+    <div class="banner warn">Weather data for {{ stale_cities | join(', ') }} is older than {{ config.STALE_MINUTES }} minutes. If the next refresh fails, these cities switch to the all-weather creative.</div>
+  {% endif %}
+  {% if simulated %}
+    <div class="banner warn">Demo mode: {{ simulated | join(', ') }} using simulated weather, not live data.</div>
+  {% endif %}
+
+  <h2>What's running where — and why</h2>
+  <div class="grid">
+    {% for city, d in cities.items() %}
+      {% set cond = d.snapshot.condition if d.snapshot else 'NODATA' %}
+      <div class="city {{ cond }}">
+        <div class="strip">
+          <h3>{{ city }}</h3>
+          <span class="cond">
+            {% if cond == 'HOT' %}HOT ☀{% elif cond == 'RAINY' %}RAINY ☂
+            {% elif cond == 'NORMAL' %}NORMAL ✓{% else %}NO DATA ⚠{% endif %}
+          </span>
+        </div>
+        <div class="reading mono">
+          {% if d.snapshot %}
+            {{ '%.1f'|format(d.snapshot.temp_c) }}°C · {{ '%.1f'|format(d.snapshot.precip_mm) }} mm/h
+            · {{ d.age_min }} min ago
+            {% if d.snapshot.source == 'simulated' %}<span class="sim">· SIMULATED</span>{% endif %}
+            {% if d.stale %}<span class="stale">· STALE</span>{% endif %}
+          {% else %}no readings yet{% endif %}
+        </div>
+        {% for li in d['items'] %}
+          <div class="li">
+            <div class="name">
+              {{ li.creative_name }}
+              <div class="meta mono">{{ li.line_item_id }} · bid ₹{{ li.bid_inr }} · ₹{{ li.daily_budget_inr }}/day</div>
+              {% if li.state == 'active' and not li.override and d.why_active %}
+              <div class="why">Active because {{ d.why_active }}</div>
+              {% endif %}
+            </div>
+            {% if li.override %}<span class="pill override" title="Pinned by a human — automation won't touch it">PINNED {{ li.override | upper }}</span>
+            {% else %}<span class="pill {{ li.state }}" {% if li.state == 'active' and d.why_active %}title="Active because {{ d.why_active }}"{% endif %}>{{ li.state | upper }}</span>{% endif %}
+            {% if li.override %}
+              <form action="/release/{{ li.id }}" method="post"><button class="btn small" title="Hand back to automation">Release</button></form>
+            {% else %}
+              <form action="/override/{{ li.id }}?state={{ 'paused' if li.state == 'active' else 'active' }}" method="post">
+                <button class="btn small">Pin {{ 'paused' if li.state == 'active' else 'active' }}</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <h2>Every change, and the reason for it</h2>
+  {% if transitions %}
+  <table>
+    <tr><th>When (UTC)</th><th>City</th><th>Creative</th><th>Change</th><th>Trigger</th><th>Why</th></tr>
+    {% for t in transitions %}
+    <tr>
+      <td class="mono">{{ t.ts.replace('T',' ').replace('+00:00','') }}</td>
+      <td>{{ t.city }}</td>
+      <td>{{ t.creative_name }} <span class="meta mono" style="color:var(--muted)">{{ t.creative_id }}</span></td>
+      <td class="mono">{{ t.from_state }} → <span class="arrow-{{ t.to_state }}">{{ t.to_state }}</span></td>
+      <td><span class="tag {{ t.trigger }}">{{ t.trigger | replace('_',' ') }}</span></td>
+      <td class="reason">{{ t.reason }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty">No state changes yet. Press “Check weather now” to run a cycle.</div>{% endif %}
+
+  <details class="dbview">
+    <summary>Under the hood — the database, live (for auditors: the actual tables)</summary>
+    <p style="color:var(--muted);font-size:13px;margin:10px 0">The two tables the system reads and writes. Every state below is the actual current database row — refresh after a cycle to watch them change.</p>
+
+  <h3 style="font-size:13px;margin:14px 0 6px">line_items <span class="mono" style="color:var(--muted);font-weight:400">(the system's output: the state column)</span></h3>
+  <table>
+    <tr><th>line_item_id</th><th>creative</th><th>city</th><th>state</th><th>override</th><th>bid ₹</th><th>budget ₹/day</th><th>last changed (UTC)</th><th>by</th><th>last reason</th></tr>
+    {% for li in items %}
+    {% set lc = last_change.get(li.id) %}
+    <tr>
+      <td class="mono">{{ li.line_item_id }}</td>
+      <td>{{ li.creative_name }} <span class="mono" style="color:var(--muted)">{{ li.creative_id }}</span></td>
+      <td>{{ li.city }}</td>
+      <td><span class="pill {{ li.state }}">{{ li.state|upper }}</span></td>
+      <td class="mono">{{ li.override or '—' }}</td>
+      <td class="mono">{{ li.bid_inr }}</td>
+      <td class="mono">{{ li.daily_budget_inr }}</td>
+      <td class="mono">{{ lc.ts.replace('T',' ').replace('+00:00','') if lc else 'never (seed state)' }}</td>
+      <td>{% if lc %}<span class="tag {{ lc.trigger }}">{{ lc.trigger|replace('_',' ') }}</span>{% else %}—{% endif %}</td>
+      <td class="reason" style="font-size:12px">{{ lc.reason if lc else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h3 style="font-size:13px;margin:18px 0 6px">weather_snapshots <span class="mono" style="color:var(--muted);font-weight:400">(the system's input: last 16 observations)</span></h3>
+  <table>
+    <tr><th>id</th><th>city</th><th>temp °C</th><th>precip mm/h</th><th>condition</th><th>source</th><th>fetched (UTC)</th></tr>
+    {% for s in snapshots %}
+    <tr>
+      <td class="mono">{{ s.id }}</td><td>{{ s.city }}</td>
+      <td class="mono">{{ '%.1f'|format(s.temp_c) }}</td>
+      <td class="mono">{{ '%.1f'|format(s.precip_mm) }}</td>
+      <td class="mono">{{ s.condition }}</td>
+      <td class="mono">{{ s.source }}</td>
+      <td class="mono">{{ s.fetched_at.replace('T',' ').replace('+00:00','') }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  </details>
+
+  <h2>System events</h2>
+  <ul class="events mono">
+    {% for e in events %}
+      <li class="{{ e.level }}">{{ e.ts.replace('T',' ').replace('+00:00','') }} — {{ e.message }}</li>
+    {% else %}
+      <li>None yet.</li>
+    {% endfor %}
+  </ul>
+
+  <details>
+    <summary>Demo controls — simulate weather (never affects live data labelling)</summary>
+    <p style="color:var(--muted);font-size:13px">Inject a fake reading for one city to demonstrate how DynaMo reacts — e.g. set Mumbai to 28°C / 4&nbsp;mm rain and watch the rainy-day creative take over. Simulated cities are flagged everywhere.</p>
+    <form action="/simulate" method="post">
+      <select name="city">{% for c in cities %}<option>{{ c }}</option>{% endfor %}</select>
+      <input name="temp_c" type="number" step="0.1" placeholder="Temp °C" required>
+      <input name="precip_mm" type="number" step="0.1" placeholder="Rain mm/h" required>
+      <button class="btn small">Apply &amp; run cycle</button>
+    </form>
+    <form action="/simulate/clear" method="post" style="margin-top:8px">
+      <button class="btn small">Clear all simulations (back to live)</button>
+    </form>
+  </details>
+
+</main>
+</body>
+</html>
