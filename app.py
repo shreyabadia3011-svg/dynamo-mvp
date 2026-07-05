@@ -30,6 +30,23 @@ import engine
 app = Flask(__name__)
 db.init_db()
 
+# Cold-start guard: on a fresh database (e.g. free-tier disk reset after
+# sleep), run one cycle at boot so the first visitor sees live data instead
+# of seed states. Wrapped so a failed fetch can never block startup —
+# the normal failure policy (safe mode / hold) handles it inside the cycle.
+try:
+    _c = db.connect()
+    if _c.execute("SELECT COUNT(*) c FROM weather_snapshots").fetchone()["c"] == 0:
+        engine.run_cycle(_c)
+    _c.close()
+except Exception as _e:
+    try:
+        _c = db.connect()
+        db.log_event(_c, "error", f"Startup cycle failed: {_e}")
+        _c.commit(); _c.close()
+    except Exception:
+        pass
+
 
 # ------------------------------------------------------------- helpers
 
