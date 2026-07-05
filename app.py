@@ -83,24 +83,30 @@ def _dashboard_data():
         "SELECT * FROM weather_snapshots ORDER BY id DESC LIMIT 16"
     ).fetchall()
     events = conn.execute(
-        "SELECT * FROM system_events ORDER BY id DESC LIMIT 30"
+        "SELECT * FROM system_events ORDER BY id DESC LIMIT 40"
     ).fetchall()
+    alerts = [e for e in events if e["level"] != "info"][:8]
+    last_cycle = next((e for e in events
+                       if e["level"] == "info" and "Cycle complete" in e["message"]), None)
     sims = conn.execute("SELECT city FROM simulated_weather").fetchall()
     conn.close()
-    return cities, transitions, events, {s["city"] for s in sims}, items, last_change, snapshots
+    return (cities, transitions, events, alerts, last_cycle,
+            {s["city"] for s in sims}, items, last_change, snapshots)
 
 
 # --------------------------------------------------------------- routes
 
 @app.route("/")
 def dashboard():
-    (cities, transitions, events, simulated,
+    (cities, transitions, events, alerts, last_cycle, simulated,
      items, last_change, snapshots) = _dashboard_data()
     return render_template(
         "dashboard.html",
         cities=cities,
         transitions=transitions,
         events=events,
+        alerts=alerts,
+        last_cycle=last_cycle,
         simulated=simulated,
         items=items,
         last_change=last_change,
