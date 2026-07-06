@@ -22,22 +22,36 @@ def fetch_live(city_coords):
     cities = list(city_coords.keys())
     lats = ",".join(str(city_coords[c]["lat"]) for c in cities)
     lons = ",".join(str(city_coords[c]["lon"]) for c in cities)
-    try:
-        resp = requests.get(
-            config.OPEN_METEO_URL,
-            params={
-                "latitude": lats,
-                "longitude": lons,
-                "current": "temperature_2m,precipitation",
-            },
-            timeout=config.REQUEST_TIMEOUT_S,
-        )
-        resp.raise_for_status()
-        payload = resp.json()
-    except requests.RequestException as e:
-        return None, f"Weather API unreachable: {e.__class__.__name__}: {e}"
-    except ValueError:
-        return None, "Weather API returned a non-JSON body"
+    last_err = None
+    for attempt in range(1 + config.FETCH_RETRIES):
+        try:
+            resp = requests.get(
+                config.OPEN_METEO_URL,
+                params={
+                    "latitude": lats,
+                    "longitude": lons,
+                    "current": "temperature_2m,precipitation",
+                },
+                timeout=config.REQUEST_TIMEOUT_S,
+            )
+            resp.raise_for_status()
+            payload = resp.json()
+            break
+        except requests.RequestException as e:
+            # Retry transient upstream trouble (429 rate limits, 5xx blips).
+            # 4xx other than 429 won't heal on retry, so fail fast on those.
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            transient = status is None or status == 429 or status >= 500
+            last_err = f"Weather API unreachable: {e.__class__.__name__}: {e}"
+            if transient and attempt < config.FETCH_RETRIES:
+                import time as _t
+                _t.sleep(config.FETCH_BACKOFF_S * (attempt + 1))
+                continue
+            return None, last_err
+        except ValueError:
+            return None, "Weather API returned a non-JSON body"
+    else:
+        return None, last_err or "Weather API failed"
 
     # Single-city responses come back as a dict, multi-city as a list.
     if isinstance(payload, dict):

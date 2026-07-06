@@ -43,7 +43,14 @@ SAFE_CREATIVE = "CR-NORM"  # what runs when we can't trust our data
 
 # ---------------------------------------------------------------- timing
 POLL_MINUTES = 10        # fetch cadence; brief's staleness tolerance is 15
+RETRY_MINUTES = 2        # eager re-poll after a failed cycle (shared-IP 429s etc.)
 STALE_MINUTES = 15       # beyond this, data is untrusted -> safe mode
+
+# In-request retry for transient upstream errors (429 / 5xx). Render's free
+# tier shares egress IPs across customers, so Open-Meteo's per-IP limits can
+# 429 us through no fault of our own volume. Two quick retries usually clear it.
+FETCH_RETRIES = 2
+FETCH_BACKOFF_S = 3
 
 # Scale note (for the write-up, not enforced here):
 # 4 cities x 6 calls/hr x 24 hr = 576 readings/day. Open-Meteo batches all

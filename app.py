@@ -231,13 +231,20 @@ def api_weather():
 # ------------------------------------------------------------ scheduler
 
 def _scheduler():
+    wait_minutes = config.POLL_MINUTES
     while True:
-        time.sleep(config.POLL_MINUTES * 60)
+        time.sleep(wait_minutes * 60)
+        wait_minutes = config.POLL_MINUTES
         try:
             conn = db.connect()
-            engine.run_cycle(conn)
+            summary = engine.run_cycle(conn)
             conn.close()
+            # If any city failed to fetch, don't wait a full cycle to heal:
+            # re-poll eagerly. Shared-IP rate limits usually clear in minutes.
+            if any(c.get("status") != "ok" for c in summary["cities"].values()):
+                wait_minutes = config.RETRY_MINUTES
         except Exception as e:  # keep the loop alive no matter what
+            wait_minutes = config.RETRY_MINUTES
             try:
                 conn = db.connect()
                 db.log_event(conn, "error", f"Scheduler cycle crashed: {e}")
