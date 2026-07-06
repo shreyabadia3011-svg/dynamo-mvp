@@ -72,8 +72,39 @@ def fetch_live(city_coords):
             # mark this city failed, keep the rest.
             readings[city] = {"error": "API returned null temperature/precipitation"}
         else:
-            readings[city] = {"temp_c": float(temp), "precip_mm": float(precip)}
+            readings[city] = {"temp_c": float(temp), "precip_mm": float(precip),
+                              "source": "open-meteo"}
     return readings, None
+
+
+def _fetch_met_norway(city_coords):
+    """Fallback source: MET Norway, one call per city, keyless.
+
+    Only invoked for cities the primary source failed to serve. Defensive
+    parsing: any surprise in the response shape marks that city failed and
+    the normal hold/safe-mode policy takes over downstream.
+    """
+    headers = {"User-Agent": config.MET_NO_USER_AGENT}
+    out = {}
+    for city, c in city_coords.items():
+        try:
+            resp = requests.get(
+                config.MET_NO_URL,
+                params={"lat": round(c["lat"], 4), "lon": round(c["lon"], 4)},
+                headers=headers,
+                timeout=config.REQUEST_TIMEOUT_S,
+            )
+            resp.raise_for_status()
+            ts = resp.json()["properties"]["timeseries"][0]["data"]
+            temp = ts["instant"]["details"]["air_temperature"]
+            nxt = ts.get("next_1_hours") or ts.get("next_6_hours") or {}
+            precip = (nxt.get("details") or {}).get("precipitation_amount", 0.0)
+            out[city] = {"temp_c": float(temp), "precip_mm": float(precip or 0.0),
+                         "source": "met-norway"}
+        except Exception as e:
+            out[city] = {"error": f"Fallback (MET Norway) also failed: "
+                                  f"{e.__class__.__name__}"}
+    return out
 
 
 def get_readings(conn, city_coords):
@@ -92,6 +123,20 @@ def get_readings(conn, city_coords):
     cities_needing_live = {c: v for c, v in city_coords.items() if c not in sims}
     if cities_needing_live:
         live, error = fetch_live(cities_needing_live)
+        live = live or {}
+        # Failover: any city the primary source could not serve gets one
+        # attempt against the fallback source before the failure policy runs.
+        failed = {c: cities_needing_live[c] for c in cities_needing_live
+                  if c not in live or "error" in live[c]}
+        if failed:
+            primary_err = (live.get(next(iter(failed)), {}).get("error")
+                           or error or "primary source failed")
+            fallback = _fetch_met_norway(failed)
+            for c, v in fallback.items():
+                if "error" not in v:
+                    live[c] = v
+                else:
+                    live[c] = {"error": f"{primary_err}; {v['error']}"}
 
     results = {}
     for city in city_coords:
@@ -102,7 +147,7 @@ def get_readings(conn, city_coords):
                 "source": "simulated",
             }
         elif live and city in live and "error" not in live[city]:
-            results[city] = {**live[city], "source": "open-meteo"}
+            results[city] = dict(live[city])
         elif live and city in live:
             results[city] = {"error": live[city]["error"]}
         else:

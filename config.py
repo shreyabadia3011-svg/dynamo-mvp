@@ -64,4 +64,12 @@ FETCH_BACKOFF_S = 3
 # ----------------------------------------------------------------- misc
 DB_PATH = "dynamo.db"
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+
+# Fallback weather source: MET Norway (keyless; requires an identifying
+# User-Agent per their terms). Used automatically for any city the primary
+# source fails to serve -- e.g. Open-Meteo rate-limiting Render's shared
+# egress IP. Multi-source failover: one provider's outage degrades nothing.
+MET_NO_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
+MET_NO_USER_AGENT = "DynaMo-MVP/1.0 github.com/shreyabadia3011-svg/dynamo-mvp"
+
 REQUEST_TIMEOUT_S = 8
